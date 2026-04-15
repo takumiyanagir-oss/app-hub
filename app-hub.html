@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafafa;
+    --bg-card: #ffffff;
+    --text: #1a1a1a;
+    --text-sub: #888888;
+    --border: #e0e0e0;
+    --border-light: #f0f0f0;
+    --accent-red: #e74c3c;
+    --accent-yellow: #f0c040;
+    --accent-green: #2ecc71;
+    --accent-purple: #9b59b6;
+    --btn-bg: #1a1a1a;
+    --btn-text: #fafafa;
+    --overlay-bg: rgba(250,250,250,0.6);
+    --shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .dark {
+    --bg: #111111;
+    --bg-card: #1a1a1a;
+    --text: #f0f0f0;
+    --text-sub: #777777;
+    --border: #2a2a2a;
+    --border-light: #222222;
+    --btn-bg: #f0f0f0;
+    --btn-text: #1a1a1a;
+    --overlay-bg: rgba(17,17,17,0.6);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background 0.3s, color 0.3s;
+  }
+  .container { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0 24px;
+  }
+  .header-left h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.04em; }
+  .header-left p { font-size: 11px; color: var(--text-sub); letter-spacing: 0.08em; margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: transparent;
+    color: var(--text); font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; position: relative;
+  }
+  .icon-btn:hover { border-color: var(--text); }
+
+  /* ── Sync Status Badge ── */
+  .sync-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    position: absolute; top: 2px; right: 2px;
+    background: var(--text-sub);
+    transition: background 0.3s;
+  }
+  .sync-dot.synced  { background: var(--accent-green); }
+  .sync-dot.syncing { background: var(--accent-yellow); animation: pulse 1s infinite; }
+  .sync-dot.error   { background: var(--accent-red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Paste Area ── */
+  .paste-area {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 24px;
+    box-shadow: var(--shadow); transition: border-color 0.2s;
+  }
+  .paste-area:focus-within { border-color: var(--text-sub); }
+  .paste-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-sub); font-weight: 500; margin-bottom: 10px;
+  }
+  .paste-row { display: flex; gap: 8px; align-items: center; }
+  .paste-input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+    font-weight: 300; letter-spacing: 0.02em; outline: none;
+    transition: border-color 0.2s;
+  }
+  .paste-input:focus { border-color: var(--text); }
+  .paste-input::placeholder { color: var(--text-sub); }
+  .paste-expand {
+    display: none; flex-direction: column; gap: 10px;
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+    animation: fadeUp 0.25s ease both;
+  }
+  .paste-expand.visible { display: flex; }
+  .paste-expand-row { display: flex; gap: 8px; }
+  .paste-expand-row .paste-input { flex: 1; }
+  .form-select {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+    font-weight: 300; letter-spacing: 0.02em; outline: none;
+    cursor: pointer; -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    padding-right: 32px; transition: border-color 0.2s;
+  }
+  .form-select:focus { border-color: var(--text); }
+  .paste-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .btn {
+    padding: 9px 20px; border-radius: 8px;
+    font-family: 'Noto Sans JP', sans-serif; font-size: 12px;
+    font-weight: 500; letter-spacing: 0.04em; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--btn-bg); color: var(--btn-text); border: none; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-outline { background: transparent; color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--text); color: var(--text); }
+  .btn-danger { background: var(--accent-red); color: #fff; border: none; }
+
+  /* ── Stats Bar ── */
+  .stats-bar { display: flex; gap: 12px; margin-bottom: 24px; }
+  .stat-card {
+    flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-sub); font-weight: 500; }
+  .stat-value { font-size: 24px; font-weight: 300; margin-top: 4px; letter-spacing: 0.04em; }
+
+  /* ── Search ── */
+  .search-area { margin-bottom: 20px; }
+  .search-input {
+    width: 100%; padding: 12px 16px; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--bg-card); color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+    font-weight: 300; letter-spacing: 0.02em; outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--text); }
+  .search-input::placeholder { color: var(--text-sub); }
+
+  /* ── Tab Navigation ── */
+  .tab-nav {
+    display: flex; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-light); overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 10px 16px; font-family: 'Noto Sans JP', sans-serif;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+    color: var(--text-sub); background: none; border: none;
+    cursor: pointer; position: relative; white-space: nowrap; transition: color 0.2s;
+  }
+  .tab-btn.active { color: var(--text); }
+  .tab-btn.active::after {
+    content: ''; position: absolute; bottom: -1px; left: 8px; right: 8px;
+    height: 2px; background: var(--text); border-radius: 2px;
+  }
+  .tab-btn:hover { color: var(--text); }
+
+  /* ── Section Label ── */
+  .section-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-sub); font-weight: 500; margin-bottom: 12px;
+  }
+
+  /* ── App Cards ── */
+  .app-list { display: flex; flex-direction: column; gap: 10px; }
+  .app-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; box-shadow: var(--shadow);
+    cursor: pointer; transition: all 0.2s; animation: fadeUp 0.3s ease both;
+  }
+  .app-card:hover { border-color: var(--text-sub); }
+  .app-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .app-card-info { flex: 1; min-width: 0; }
+  .app-card-title {
+    font-size: 14px; font-weight: 500; letter-spacing: 0.02em; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .app-card-url {
+    font-size: 11px; color: var(--text-sub); letter-spacing: 0.01em; margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7;
+  }
+  .app-card-desc {
+    font-size: 12px; color: var(--text-sub); letter-spacing: 0.02em; line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .app-card-meta { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .badge {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 4px; font-weight: 500; line-height: 1.6;
+  }
+  .badge-category { background: var(--border-light); color: var(--text-sub); }
+  .dark .badge-category { background: #252525; }
+  .app-card-date { font-size: 10px; color: var(--text-sub); letter-spacing: 0.04em; }
+  .app-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .card-action-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border);
+    background: transparent; color: var(--text-sub); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .card-action-btn:hover { border-color: var(--text); color: var(--text); }
+  .card-action-btn.delete:hover { border-color: var(--accent-red); color: var(--accent-red); }
+
+  /* ── Empty State ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-sub); }
+  .empty-state-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 13px; letter-spacing: 0.02em; line-height: 1.8; }
+
+  /* ── Modal / Overlay ── */
+  .overlay {
+    position: fixed; inset: 0; background: var(--overlay-bg);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    padding: 16px; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .overlay.visible { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 100%; max-width: 480px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08); animation: fadeUp 0.3s ease both;
+  }
+  .modal-title {
+    font-size: 16px; font-weight: 600; letter-spacing: 0.04em; margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-close { background: none; border: none; color: var(--text-sub); font-size: 18px; cursor: pointer; padding: 4px; }
+  .modal-close:hover { color: var(--text); }
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-sub); font-weight: 500; margin-bottom: 6px;
+  }
+  .form-input, .form-textarea {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif; font-size: 13px; font-weight: 300;
+    letter-spacing: 0.02em; outline: none; transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-textarea:focus { border-color: var(--text); }
+  .form-textarea { resize: vertical; min-height: 60px; }
+  .form-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .form-check { display: flex; align-items: center; gap: 8px; }
+  .form-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent-purple); cursor: pointer; }
+  .form-check label { font-size: 12px; color: var(--text-sub); cursor: pointer; }
+  .delete-confirm { text-align: center; }
+  .delete-confirm p { font-size: 13px; color: var(--text-sub); margin-bottom: 20px; line-height: 1.6; }
+  .delete-confirm .form-actions { justify-content: center; }
+  .delete-confirm .btn { min-width: 100px; }
+
+  /* ── Sync Info Banner ── */
+  .sync-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+    margin-bottom: 20px; font-size: 11px; color: var(--text-sub);
+    letter-spacing: 0.04em; background: var(--bg-card); box-shadow: var(--shadow);
+  }
+  .sync-banner-left { display: flex; align-items: center; gap: 8px; }
+  .sync-banner-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-sub); flex-shrink: 0; }
+  .sync-banner-dot.synced  { background: var(--accent-green); }
+  .sync-banner-dot.syncing { background: var(--accent-yellow); animation: pulse 1s infinite; }
+  .sync-banner-dot.error   { background: var(--accent-red); }
+  .sync-now-btn {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-sub); cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif; font-weight: 500;
+    transition: all 0.2s;
+  }
+  .sync-now-btn:hover { border-color: var(--text); color: var(--text); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--btn-bg); color: var(--btn-text);
+    padding: 10px 20px; border-radius: 8px; font-size: 12px;
+    font-weight: 500; letter-spacing: 0.04em; opacity: 0;
+    pointer-events: none; transition: all 0.3s ease; z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Animations ── */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>App Hub</h1>
+      <p>COWORK APP MANAGER</p>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="syncBtn" onclick="syncNow()" title="Sync with Google Sheets">
+        ↻
+        <span class="sync-dot" id="syncDot"></span>
+      </button>
+      <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Theme">☀</button>
+    </div>
+  </div>
+
+  <!-- Sync Banner -->
+  <div class="sync-banner" id="syncBanner">
+    <div class="sync-banner-left">
+      <span class="sync-banner-dot" id="bannerDot"></span>
+      <span id="syncStatus">Google スプレッドシートと同期中...</span>
+    </div>
+    <button class="sync-now-btn" onclick="syncNow()">Sync Now</button>
+  </div>
+
+  <!-- Paste Area -->
+  <div class="paste-area">
+    <div class="paste-label">Add New App</div>
+    <div class="paste-row">
+      <input type="text" class="paste-input" id="pasteUrl"
+        placeholder="Paste URL here..."
+        oninput="onUrlInput()" onpaste="onUrlPaste(event)">
+    </div>
+    <div class="paste-expand" id="pasteExpand">
+      <input type="text" class="paste-input" id="pasteName" placeholder="App name *">
+      <input type="text" class="paste-input" id="pasteDesc" placeholder="Description (optional)">
+      <div class="paste-expand-row">
+        <select class="form-select" id="pasteCatSelect" onchange="document.getElementById('pasteCatNew').value=''">
+          <option value="">Category...</option>
+        </select>
+        <input type="text" class="paste-input" id="pasteCatNew"
+          placeholder="or new..." oninput="document.getElementById('pasteCatSelect').value=''">
+      </div>
+      <div class="paste-actions">
+        <button class="btn btn-outline" onclick="cancelPaste()">Cancel</button>
+        <button class="btn btn-primary" onclick="addFromPaste()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">Total</div>
+      <div class="stat-value" id="statTotal">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Favorites</div>
+      <div class="stat-value" id="statFav">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Categories</div>
+      <div class="stat-value" id="statCat">0</div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-area">
+    <input type="text" class="search-input" id="searchInput"
+      placeholder="Search apps..." oninput="renderApps()">
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-nav" id="tabNav">
+    <button class="tab-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="tab-btn" data-filter="fav" onclick="setFilter('fav', this)">Favorites</button>
+  </div>
+
+  <!-- App List -->
+  <div class="section-label" id="listLabel">REGISTERED APPS</div>
+  <div class="app-list" id="appList"></div>
+</div>
+
+<!-- Modal Overlay -->
+<div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── GAS Config ───
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxToo7WlPw4FDsodlje4F38MmMqxSYvWQX9zaLmT1QSJdWi9G8RxmpoYXL-mIOBK17apA/exec';
+
+  // ─── State ───
+  let apps = [];
+  let currentFilter = 'all';
+  let currentCategoryFilter = null;
+  let syncTimeout = null;
+
+  // ─── Persistence (localStorage cache) ───
+  function saveLocal() {
+    try { localStorage.setItem('apphub_data', JSON.stringify(apps)); } catch(e) {}
+  }
+  function loadLocal() {
+    try {
+      const d = localStorage.getItem('apphub_data');
+      if (d) apps = JSON.parse(d);
+    } catch(e) {}
+  }
+
+  // ─── GAS Sync ───
+  function setSyncState(state, msg) {
+    const dot = document.getElementById('syncDot');
+    const bannerDot = document.getElementById('bannerDot');
+    const status = document.getElementById('syncStatus');
+    [dot, bannerDot].forEach(el => {
+      el.className = 'sync-dot ' + state;
+    });
+    bannerDot.className = 'sync-banner-dot ' + state;
+    const messages = {
+      syncing: '同期中...',
+      synced:  '最終同期: ' + new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}),
+      error:   '同期エラー — ローカルデータを使用中',
+      idle:    'Google スプレッドシートと同期'
+    };
+    status.textContent = msg || messages[state] || messages.idle;
+  }
+
+  function fetchFromGAS() {
+    setSyncState('syncing');
+    return new Promise((resolve) => {
+      function onSuccess(json) {
+        if (json && json.status === 'ok') {
+          if (json.data && json.data.length > 0) { apps = json.data; saveLocal(); }
+          setSyncState('synced');
+          resolve(true);
+        } else { setSyncState('error'); resolve(false); }
+      }
+      function onError() { setSyncState('error'); resolve(false); }
+      fetch(GAS_URL + '?api=1')
+        .then(r => r.json()).then(onSuccess).catch(onError);
+    });
+  }
+
+  function pushToGAS() {
+    setSyncState('syncing');
+    return new Promise((resolve) => {
+      function onSuccess(json) {
+        if (json && json.status === 'ok') { setSyncState('synced'); resolve(true); }
+        else { setSyncState('error'); resolve(false); }
+      }
+      function onError() { setSyncState('error'); resolve(false); }
+      fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'sync', apps: apps }) })
+        .then(r => r.json()).then(onSuccess).catch(onError);
+    });
+  }
+
+  // Debounced auto-sync after any change
+  function schedulePush() {
+    clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => pushToGAS(), 1500);
+  }
+
+  async function syncNow() {
+    // Pull from GAS, then update UI
+    const ok = await fetchFromGAS();
+    if (ok) {
+      updateStats(); renderTabs(); renderApps();
+      showToast('Synced with Google Sheets');
+    } else {
+      showToast('Sync failed — check connection');
+    }
+  }
+
+  // ─── ID ───
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function getCategories() {
+    const cats = new Set();
+    apps.forEach(a => { if (a.category) cats.add(a.category); });
+    return [...cats].sort();
+  }
+
+  // ─── Stats ───
+  function updateStats() {
+    document.getElementById('statTotal').textContent = apps.length;
+    document.getElementById('statFav').textContent = apps.filter(a => a.favorite).length;
+    document.getElementById('statCat').textContent = getCategories().length;
+  }
+
+  // ─── Paste Area ───
+  function onUrlInput() {
+    const val = document.getElementById('pasteUrl').value.trim();
+    const expand = document.getElementById('pasteExpand');
+    if (val.length > 0) {
+      expand.classList.add('visible');
+      updateCategoryDropdown('pasteCatSelect');
+    } else {
+      expand.classList.remove('visible');
+    }
+  }
+  function onUrlPaste(e) {
+    setTimeout(() => {
+      onUrlInput();
+      const nameEl = document.getElementById('pasteName');
+      if (nameEl && document.getElementById('pasteExpand').classList.contains('visible')) {
+        nameEl.focus();
+      }
+    }, 50);
+  }
+  function cancelPaste() {
+    ['pasteUrl','pasteName','pasteDesc','pasteCatNew'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('pasteCatSelect').value = '';
+    document.getElementById('pasteExpand').classList.remove('visible');
+  }
+  function addFromPaste() {
+    const url = document.getElementById('pasteUrl').value.trim();
+    const name = document.getElementById('pasteName').value.trim();
+    const desc = document.getElementById('pasteDesc').value.trim();
+    const catSel = document.getElementById('pasteCatSelect').value;
+    const catNew = document.getElementById('pasteCatNew').value.trim();
+    const category = catNew || catSel || '';
+
+    if (!url) { showToast('URL is required'); return; }
+    if (!name) { showToast('App name is required'); return; }
+
+    apps.push({
+      id: genId(), name, url, description: desc,
+      category, favorite: false,
+      createdAt: Date.now(), updatedAt: Date.now()
+    });
+
+    saveLocal(); updateStats(); renderTabs(); renderApps();
+    cancelPaste();
+    showToast('App added');
+    schedulePush();
+  }
+
+  function updateCategoryDropdown(selectId) {
+    const sel = document.getElementById(selectId);
+    const currentVal = sel.value;
+    const cats = getCategories();
+    sel.innerHTML = '<option value="">Category...</option>' +
+      cats.map(c => `<option value="${escHtml(c)}" ${c === currentVal ? 'selected' : ''}>${escHtml(c)}</option>`).join('');
+  }
+
+  // ─── Tabs ───
+  function renderTabs() {
+    const nav = document.getElementById('tabNav');
+    nav.querySelectorAll('.tab-btn[data-filter^="cat:"]').forEach(el => el.remove());
+    const cats = getCategories();
+    cats.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn';
+      btn.dataset.filter = 'cat:' + cat;
+      btn.textContent = cat;
+      btn.onclick = () => setFilter('cat:' + cat, btn);
+      nav.appendChild(btn);
+    });
+    nav.querySelectorAll('.tab-btn').forEach(b => {
+      const f = b.dataset.filter;
+      const isActive = (currentCategoryFilter && f === 'cat:' + currentCategoryFilter) ||
+                       (!currentCategoryFilter && f === currentFilter);
+      b.classList.toggle('active', isActive);
+    });
+  }
+  function setFilter(filter, btn) {
+    if (filter.startsWith('cat:')) {
+      currentFilter = 'all'; currentCategoryFilter = filter.slice(4);
+    } else {
+      currentFilter = filter; currentCategoryFilter = null;
+    }
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderApps();
+  }
+
+  // ─── Render ───
+  function renderApps() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    let filtered = [...apps];
+    if (currentFilter === 'fav') filtered = filtered.filter(a => a.favorite);
+    if (currentCategoryFilter) filtered = filtered.filter(a => a.category === currentCategoryFilter);
+    if (query) {
+      filtered = filtered.filter(a =>
+        a.name.toLowerCase().includes(query) ||
+        (a.description || '').toLowerCase().includes(query) ||
+        (a.category || '').toLowerCase().includes(query) ||
+        (a.url || '').toLowerCase().includes(query)
+      );
+    }
+    filtered.sort((a, b) => {
+      if (a.favorite !== b.favorite) return b.favorite ? 1 : -1;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    const list = document.getElementById('appList');
+    const label = document.getElementById('listLabel');
+
+    if (filtered.length === 0) {
+      label.style.display = 'none';
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">○</div>
+          <p>${apps.length === 0
+            ? 'No apps registered yet.<br>Paste a URL above to add your first app.'
+            : 'No matching apps found.'}</p>
+        </div>`;
+      return;
+    }
+    label.style.display = 'block';
+    label.textContent = currentCategoryFilter
+      ? currentCategoryFilter.toUpperCase()
+      : currentFilter === 'fav' ? 'FAVORITES' : 'REGISTERED APPS';
+
+    list.innerHTML = filtered.map((app, i) => `
+      <div class="app-card" style="animation-delay:${i * 0.04}s" onclick="openApp('${app.id}')">
+        <div class="app-card-top">
+          <div class="app-card-info">
+            <div class="app-card-title">
+              ${escHtml(app.name)}
+              ${app.favorite ? '<span style="color:var(--accent-purple);font-size:11px;">●</span>' : ''}
+            </div>
+            <div class="app-card-url">${escHtml(app.url)}</div>
+            ${app.description ? `<div class="app-card-desc">${escHtml(app.description)}</div>` : ''}
+            <div class="app-card-meta">
+              ${app.category ? `<span class="badge badge-category">${escHtml(app.category)}</span>` : ''}
+              <span class="app-card-date">${formatDate(app.createdAt)}</span>
+            </div>
+          </div>
+          <div class="app-card-actions">
+            <button class="card-action-btn" onclick="event.stopPropagation();toggleFav('${app.id}')" title="Favorite">
+              ${app.favorite ? '●' : '○'}
+            </button>
+            <button class="card-action-btn" onclick="event.stopPropagation();openEditModal('${app.id}')" title="Edit">✎</button>
+            <button class="card-action-btn delete" onclick="event.stopPropagation();confirmDelete('${app.id}')" title="Delete">×</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function openApp(id) {
+    const app = apps.find(a => a.id === id);
+    if (app && app.url) window.open(app.url, '_blank');
+  }
+
+  function toggleFav(id) {
+    const app = apps.find(a => a.id === id);
+    if (app) {
+      app.favorite = !app.favorite;
+      saveLocal(); updateStats(); renderApps();
+      schedulePush();
+    }
+  }
+
+  // ─── Edit Modal ───
+  function openEditModal(id) {
+    const app = apps.find(a => a.id === id);
+    if (!app) return;
+    const cats = getCategories();
+    const catOptions = cats.map(c =>
+      `<option value="${escHtml(c)}" ${app.category === c ? 'selected' : ''}>${escHtml(c)}</option>`
+    ).join('');
+
+    document.getElementById('modal').innerHTML = `
+      <div class="modal-title">
+        Edit App
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">App Name *</label>
+        <input class="form-input" id="eName" value="${escHtml(app.name)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL *</label>
+        <input class="form-input" id="eUrl" value="${escHtml(app.url)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="eDesc">${escHtml(app.description || '')}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <div style="display:flex;gap:8px;">
+          <select class="form-select" id="eCatSelect" style="flex:1;" onchange="document.getElementById('eCatNew').value=''">
+            <option value="">-- Select --</option>
+            ${catOptions}
+          </select>
+          <input class="form-input" id="eCatNew" style="flex:1;" placeholder="or new..."
+            oninput="document.getElementById('eCatSelect').value=''">
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-check">
+          <input type="checkbox" id="eFav" ${app.favorite ? 'checked' : ''}>
+          <label for="eFav">Mark as favorite</label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="closeModal()" style="flex:1;">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEdit('${app.id}')" style="flex:1;">Save</button>
+      </div>
+    `;
+    showOverlay();
+  }
+
+  function saveEdit(id) {
+    const name = document.getElementById('eName').value.trim();
+    const url  = document.getElementById('eUrl').value.trim();
+    const desc = document.getElementById('eDesc').value.trim();
+    const catSel = document.getElementById('eCatSelect').value;
+    const catNew = document.getElementById('eCatNew').value.trim();
+    const fav  = document.getElementById('eFav').checked;
+    const category = catNew || catSel || '';
+
+    if (!name) { showToast('App name is required'); return; }
+    if (!url)  { showToast('URL is required'); return; }
+
+    const app = apps.find(a => a.id === id);
+    if (app) {
+      Object.assign(app, { name, url, description: desc, category, favorite: fav, updatedAt: Date.now() });
+    }
+    saveLocal(); updateStats(); renderTabs(); renderApps();
+    closeModal();
+    showToast('App updated');
+    schedulePush();
+  }
+
+  // ─── Delete ───
+  function confirmDelete(id) {
+    const app = apps.find(a => a.id === id);
+    if (!app) return;
+    document.getElementById('modal').innerHTML = `
+      <div class="modal-title">
+        Delete App
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="delete-confirm">
+        <p>Are you sure you want to delete<br><strong>${escHtml(app.name)}</strong>?</p>
+        <div class="form-actions">
+          <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-danger" onclick="deleteApp('${id}')">Delete</button>
+        </div>
+      </div>
+    `;
+    showOverlay();
+  }
+  function deleteApp(id) {
+    apps = apps.filter(a => a.id !== id);
+    saveLocal(); updateStats(); renderTabs(); renderApps();
+    closeModal(); showToast('App deleted');
+    schedulePush();
+  }
+
+  // ─── Overlay ───
+  function showOverlay() { document.getElementById('overlay').classList.add('visible'); }
+  function closeModal()  { document.getElementById('overlay').classList.remove('visible'); }
+  function handleOverlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
+  // ─── Theme ───
+  function toggleTheme() {
+    document.body.classList.toggle('dark');
+    const isDark = document.body.classList.contains('dark');
+    document.getElementById('themeToggle').textContent = isDark ? '☀' : '☾';
+    try { localStorage.setItem('apphub_theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  }
+  function loadTheme() {
+    try {
+      const t = localStorage.getItem('apphub_theme');
+      if (t === 'dark') {
+        document.body.classList.add('dark');
+        document.getElementById('themeToggle').textContent = '☀';
+      }
+    } catch(e) {}
+  }
+
+  // ─── Toast ───
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('show'), 2000);
+  }
+
+  // ─── Util ───
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+  function formatDate(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+  }
+
+  // ─── Keyboard ───
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ─── Init ───
+  loadTheme();
+  loadLocal();           // Show cached data immediately
+  updateStats();
+  renderTabs();
+  renderApps();
+  setSyncState('idle');
+
+  // Then pull fresh data from GAS
+  fetchFromGAS().then(ok => {
+    if (ok) { updateStats(); renderTabs(); renderApps(); }
+  });
+</script>
+
+</body>
+</html>
