@@ -205,6 +205,8 @@
   }
   .badge-category { background: var(--border-light); color: var(--text-sub); }
   .dark .badge-category { background: #252525; }
+  .badge-tag { background: #eeeeff; color: #6666aa; text-transform: none; letter-spacing: 0.04em; }
+  .dark .badge-tag { background: #1e1e2a; color: #9999cc; }
   .app-card-date { font-size: 10px; color: var(--text-sub); letter-spacing: 0.04em; }
   .app-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .card-action-btn {
@@ -338,6 +340,7 @@
     <div class="paste-expand" id="pasteExpand">
       <input type="text" class="paste-input" id="pasteName" placeholder="App name *">
       <input type="text" class="paste-input" id="pasteDesc" placeholder="Description (optional)">
+      <input type="text" class="paste-input" id="pasteTagInput" placeholder="タグ（例: ヤナギ, 奥さん）— カンマ区切りで複数可">
       <div class="paste-expand-row">
         <select class="form-select" id="pasteCatSelect" onchange="document.getElementById('pasteCatNew').value=''">
           <option value="">Category...</option>
@@ -400,7 +403,7 @@
   // ─── State ───
   let apps = [];
   let currentFilter = 'all';
-  let currentCategoryFilter = null;
+  let currentTagFilter = null;
   let syncTimeout = null;
 
   // ─── Persistence (localStorage cache) ───
@@ -489,6 +492,16 @@
     return [...cats].sort();
   }
 
+  function getTags() {
+    const tags = new Set();
+    apps.forEach(a => { (a.tags || []).forEach(t => { if (t) tags.add(t); }); });
+    return [...tags].sort();
+  }
+
+  function parseTags(str) {
+    return str.split(',').map(t => t.trim()).filter(Boolean);
+  }
+
   // ─── Stats ───
   function updateStats() {
     document.getElementById('statTotal').textContent = apps.length;
@@ -517,7 +530,7 @@
     }, 50);
   }
   function cancelPaste() {
-    ['pasteUrl','pasteName','pasteDesc','pasteCatNew'].forEach(id => {
+    ['pasteUrl','pasteName','pasteDesc','pasteTagInput','pasteCatNew'].forEach(id => {
       document.getElementById(id).value = '';
     });
     document.getElementById('pasteCatSelect').value = '';
@@ -530,13 +543,14 @@
     const catSel = document.getElementById('pasteCatSelect').value;
     const catNew = document.getElementById('pasteCatNew').value.trim();
     const category = catNew || catSel || '';
+    const tags = parseTags(document.getElementById('pasteTagInput').value);
 
     if (!url) { showToast('URL is required'); return; }
     if (!name) { showToast('App name is required'); return; }
 
     apps.push({
       id: genId(), name, url, description: desc,
-      category, favorite: false,
+      category, tags, favorite: false,
       createdAt: Date.now(), updatedAt: Date.now()
     });
 
@@ -557,28 +571,28 @@
   // ─── Tabs ───
   function renderTabs() {
     const nav = document.getElementById('tabNav');
-    nav.querySelectorAll('.tab-btn[data-filter^="cat:"]').forEach(el => el.remove());
-    const cats = getCategories();
-    cats.forEach(cat => {
+    nav.querySelectorAll('.tab-btn[data-filter^="tag:"]').forEach(el => el.remove());
+    const tags = getTags();
+    tags.forEach(tag => {
       const btn = document.createElement('button');
       btn.className = 'tab-btn';
-      btn.dataset.filter = 'cat:' + cat;
-      btn.textContent = cat;
-      btn.onclick = () => setFilter('cat:' + cat, btn);
+      btn.dataset.filter = 'tag:' + tag;
+      btn.textContent = tag;
+      btn.onclick = () => setFilter('tag:' + tag, btn);
       nav.appendChild(btn);
     });
     nav.querySelectorAll('.tab-btn').forEach(b => {
       const f = b.dataset.filter;
-      const isActive = (currentCategoryFilter && f === 'cat:' + currentCategoryFilter) ||
-                       (!currentCategoryFilter && f === currentFilter);
+      const isActive = (currentTagFilter && f === 'tag:' + currentTagFilter) ||
+                       (!currentTagFilter && f === currentFilter);
       b.classList.toggle('active', isActive);
     });
   }
   function setFilter(filter, btn) {
-    if (filter.startsWith('cat:')) {
-      currentFilter = 'all'; currentCategoryFilter = filter.slice(4);
+    if (filter.startsWith('tag:')) {
+      currentFilter = 'all'; currentTagFilter = filter.slice(4);
     } else {
-      currentFilter = filter; currentCategoryFilter = null;
+      currentFilter = filter; currentTagFilter = null;
     }
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -590,13 +604,14 @@
     const query = document.getElementById('searchInput').value.toLowerCase().trim();
     let filtered = [...apps];
     if (currentFilter === 'fav') filtered = filtered.filter(a => a.favorite);
-    if (currentCategoryFilter) filtered = filtered.filter(a => a.category === currentCategoryFilter);
+    if (currentTagFilter) filtered = filtered.filter(a => (a.tags || []).includes(currentTagFilter));
     if (query) {
       filtered = filtered.filter(a =>
         a.name.toLowerCase().includes(query) ||
         (a.description || '').toLowerCase().includes(query) ||
         (a.category || '').toLowerCase().includes(query) ||
-        (a.url || '').toLowerCase().includes(query)
+        (a.url || '').toLowerCase().includes(query) ||
+        (a.tags || []).some(t => t.toLowerCase().includes(query))
       );
     }
     filtered.sort((a, b) => {
@@ -619,8 +634,8 @@
       return;
     }
     label.style.display = 'block';
-    label.textContent = currentCategoryFilter
-      ? currentCategoryFilter.toUpperCase()
+    label.textContent = currentTagFilter
+      ? currentTagFilter.toUpperCase()
       : currentFilter === 'fav' ? 'FAVORITES' : 'REGISTERED APPS';
 
     list.innerHTML = filtered.map((app, i) => `
@@ -635,6 +650,7 @@
             ${app.description ? `<div class="app-card-desc">${escHtml(app.description)}</div>` : ''}
             <div class="app-card-meta">
               ${app.category ? `<span class="badge badge-category">${escHtml(app.category)}</span>` : ''}
+              ${(app.tags || []).map(t => `<span class="badge badge-tag">${escHtml(t)}</span>`).join('')}
               <span class="app-card-date">${formatDate(app.createdAt)}</span>
             </div>
           </div>
@@ -702,6 +718,10 @@
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">タグ（誰のアプリか）</label>
+        <input class="form-input" id="eTags" value="${escHtml((app.tags || []).join(', '))}" placeholder="例: ヤナギ, 奥さん — カンマ区切りで複数可">
+      </div>
+      <div class="form-group">
         <div class="form-check">
           <input type="checkbox" id="eFav" ${app.favorite ? 'checked' : ''}>
           <label for="eFav">Mark as favorite</label>
@@ -723,13 +743,14 @@
     const catNew = document.getElementById('eCatNew').value.trim();
     const fav  = document.getElementById('eFav').checked;
     const category = catNew || catSel || '';
+    const tags = parseTags(document.getElementById('eTags').value);
 
     if (!name) { showToast('App name is required'); return; }
     if (!url)  { showToast('URL is required'); return; }
 
     const app = apps.find(a => a.id === id);
     if (app) {
-      Object.assign(app, { name, url, description: desc, category, favorite: fav, updatedAt: Date.now() });
+      Object.assign(app, { name, url, description: desc, category, tags, favorite: fav, updatedAt: Date.now() });
     }
     saveLocal(); updateStats(); renderTabs(); renderApps();
     closeModal();
