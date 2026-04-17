@@ -207,6 +207,14 @@
   .dark .badge-category { background: #252525; }
   .badge-tag { background: #eeeeff; color: #6666aa; text-transform: none; letter-spacing: 0.04em; }
   .dark .badge-tag { background: #1e1e2a; color: #9999cc; }
+
+  /* ── Category Tabs ── */
+  .tab-btn-cat.active { color: var(--accent-purple); }
+  .tab-btn-cat.active::after { background: var(--accent-purple); }
+  .tab-sep {
+    width: 1px; background: var(--border); margin: 8px 4px;
+    flex-shrink: 0; align-self: stretch;
+  }
   .app-card-date { font-size: 10px; color: var(--text-sub); letter-spacing: 0.04em; }
   .app-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .card-action-btn {
@@ -404,6 +412,7 @@
   let apps = [];
   let currentFilter = 'all';
   let currentTagFilter = null;
+  let currentCatFilter = null;
   let syncTimeout = null;
 
   // ─── Persistence (localStorage cache) ───
@@ -571,28 +580,57 @@
   // ─── Tabs ───
   function renderTabs() {
     const nav = document.getElementById('tabNav');
-    nav.querySelectorAll('.tab-btn[data-filter^="tag:"]').forEach(el => el.remove());
+    // Remove dynamic tabs and separators
+    nav.querySelectorAll('.tab-btn[data-filter^="tag:"], .tab-btn[data-filter^="cat:"], .tab-sep').forEach(el => el.remove());
+
+    // Add category tabs (app type)
+    const cats = getCategories();
     const tags = getTags();
-    tags.forEach(tag => {
-      const btn = document.createElement('button');
-      btn.className = 'tab-btn';
-      btn.dataset.filter = 'tag:' + tag;
-      btn.textContent = tag;
-      btn.onclick = () => setFilter('tag:' + tag, btn);
-      nav.appendChild(btn);
-    });
+    if (cats.length > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'tab-sep';
+      nav.appendChild(sep);
+      cats.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn tab-btn-cat';
+        btn.dataset.filter = 'cat:' + cat;
+        btn.textContent = cat;
+        btn.onclick = () => setFilter('cat:' + cat, btn);
+        nav.appendChild(btn);
+      });
+    }
+
+    // Add tag tabs (person name)
+    if (tags.length > 0) {
+      const sep2 = document.createElement('span');
+      sep2.className = 'tab-sep';
+      nav.appendChild(sep2);
+      tags.forEach(tag => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn';
+        btn.dataset.filter = 'tag:' + tag;
+        btn.textContent = tag;
+        btn.onclick = () => setFilter('tag:' + tag, btn);
+        nav.appendChild(btn);
+      });
+    }
+
+    // Update active state
     nav.querySelectorAll('.tab-btn').forEach(b => {
       const f = b.dataset.filter;
       const isActive = (currentTagFilter && f === 'tag:' + currentTagFilter) ||
-                       (!currentTagFilter && f === currentFilter);
+                       (currentCatFilter && f === 'cat:' + currentCatFilter) ||
+                       (!currentTagFilter && !currentCatFilter && f === currentFilter);
       b.classList.toggle('active', isActive);
     });
   }
   function setFilter(filter, btn) {
     if (filter.startsWith('tag:')) {
-      currentFilter = 'all'; currentTagFilter = filter.slice(4);
+      currentFilter = 'all'; currentTagFilter = filter.slice(4); currentCatFilter = null;
+    } else if (filter.startsWith('cat:')) {
+      currentFilter = 'all'; currentCatFilter = filter.slice(4); currentTagFilter = null;
     } else {
-      currentFilter = filter; currentTagFilter = null;
+      currentFilter = filter; currentTagFilter = null; currentCatFilter = null;
     }
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -605,6 +643,7 @@
     let filtered = [...apps];
     if (currentFilter === 'fav') filtered = filtered.filter(a => a.favorite);
     if (currentTagFilter) filtered = filtered.filter(a => (a.tags || []).includes(currentTagFilter));
+    if (currentCatFilter) filtered = filtered.filter(a => a.category === currentCatFilter);
     if (query) {
       filtered = filtered.filter(a =>
         a.name.toLowerCase().includes(query) ||
@@ -636,7 +675,9 @@
     label.style.display = 'block';
     label.textContent = currentTagFilter
       ? currentTagFilter.toUpperCase()
-      : currentFilter === 'fav' ? 'FAVORITES' : 'REGISTERED APPS';
+      : currentCatFilter
+        ? currentCatFilter.toUpperCase()
+        : currentFilter === 'fav' ? 'FAVORITES' : 'REGISTERED APPS';
 
     list.innerHTML = filtered.map((app, i) => `
       <div class="app-card" style="animation-delay:${i * 0.04}s" onclick="openApp('${app.id}')">
